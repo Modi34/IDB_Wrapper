@@ -2,37 +2,47 @@ importScripts('indexedDB.js', 'example.js')
 
 let ports = []
 onconnect = function(e) {
-  var port = e.ports[0];
-  ports.push(port)
-  console.log('connect', e)
+	if(!e.isTrusted){return}
+	var port = e.ports[0];
+	ports.push( port )
+	console.log('connect', e)
 
-  port.onmessage = function(e) {
-  	console.log('message', e)
-  	let {cmd, params} = e.data;
-  	actions[cmd]?.(params, port)
-  };
-  port.start()
+	port.onmessage = function(e) {
+		if(!e.isTrusted){return}
+		console.log('message', e)
+		let {cmd, params} = e.data;
+		actions[ cmd ]?.(params, port)
+	};
+	port.start()
 
-  for(let port of ports){
-  	port.postMessage('new tab connected');
-  }
+	notifyAllClients({type: 'create'})
 }
 
 const actions = {
 	async get(params, port){
 		let {table, range, key} = params;
-		port.postMessage(
+		port.postMessage({type: 'get', record:
 			await connection[ table ]?.get(range, key)
-		)
+		})
 	},
-	set(params){
+	async set(params){
 		let {table, data} = params;
 		for(let record of data){
-			connection[ table ]?.set( record )
+			let id = await connection[ table ]?.set( record )
+			if(id){
+				notifyAllClients({type: 'set', table, record, id})
+			}
 		}
 	},
-	delete(params){
+	async delete(params){
 		let {table, id, key} = params
-		connection[ table ]?.delete(id)
+		await connection[ table ]?.delete( id )
+		notifyAllClients({type: 'delete', table, id})
+	}
+}
+
+function notifyAllClients(message){
+	for(let port of ports){
+		port.postMessage( message )
 	}
 }

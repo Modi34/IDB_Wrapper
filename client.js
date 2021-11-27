@@ -1,5 +1,8 @@
 var dbWorker = new SharedWorker('./sharedWorker.js');
-dbWorker.port.onmessage = e=>{console.log(e)}
+dbWorker.port.onmessage = e=>{
+	if(!e.isTrusted){return}
+	console.log(e.data)
+}
 dbWorker.port.onerror = e=>{console.log(e)}
 
 setTimeout(e=>{
@@ -15,6 +18,7 @@ setTimeout(e=>{
 		}
 	})
 	*/
+	/*
 	dbWorker.port.postMessage({
 		cmd: 'get',
 		params:{
@@ -22,6 +26,8 @@ setTimeout(e=>{
 			range: 5
 		}
 	})
+	*/
+	/*
 	dbWorker.port.postMessage({
 		cmd: 'delete',
 		params:{
@@ -29,4 +35,5 @@ setTimeout(e=>{
 			id: 4
 		}
 	})
+	*/
 },100)
