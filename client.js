@@ -1,6 +1,32 @@
-var dbWorker = new SharedWorker('./sharedWorker.js?4');
+var dbWorker = new SharedWorker('./sharedWorker.js');
 dbWorker.port.onmessage = e=>{console.log(e)}
 dbWorker.port.onerror = e=>{console.log(e)}
-console.log(dbWorker)
-dbWorker.port.start();
-dbWorker.port.postMessage('hey')
+
+setTimeout(e=>{
+	/*
+	dbWorker.port.postMessage({cmd: 'set', 
+		params: {
+			table: 'tasks',
+			data: [{
+				title: 'hey',
+				isFinished: true,
+				date: -1
+			}]
+		}
+	})
+	*/
+	dbWorker.port.postMessage({
+		cmd: 'get',
+		params:{
+			table: 'tasks',
+			range: 5
+		}
+	})
+	dbWorker.port.postMessage({
+		cmd: 'delete',
+		params:{
+			table: 'tasks',
+			id: 4
+		}
+	})
+},100)

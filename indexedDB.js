@@ -29,8 +29,6 @@ class DATA{
     create(name, structure, isUpgrade){
 	this.checkRequired({name, structure})
 
-	// this.checkRequired({name, structure})
-
 	let store = this.DB.createObjectStore(name, { keyPath: 'id', autoIncrement: true });
 	for(let column in structure){
 	    store.createIndex(column, column, { unique: !!structure[column].unique });
@@ -99,7 +97,6 @@ class DATA{
 	    request = request.index(key)
 	}
 
-	console.log(key)
 	let isSingle = (!key && range && !range.push) ||
 			(key ? this.structure[table][key].unique : false);
 
@@ -116,14 +113,6 @@ class DATA{
 	var {range, isSingle, request} = this.transaction(table, id, false, 'readwrite')
 	request = request[isSingle ? 'delete' : 'deleteIndex'](range)
 	return this.promise(request)
-    }
-
-    last(startFrom, sortBy, isForward){
-
-    }
-
-    subscribe(table){
-
     }
 
     checkRequired(values){
