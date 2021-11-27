@@ -4,7 +4,6 @@ class DATA{
 
 	this.structure = structure;
 
-	let scope = this;
 	let openRequest = indexedDB.open(name, version);
 	openRequest.onsuccess = result => {
 	    this.DB = openRequest.result;
@@ -50,74 +49,54 @@ class DATA{
     }
 
     // range = [from, to] || from
-    get(table, range, key){
-	var {range, isSingle, request} = this.transaction(table, range, key)
-	request = request[isSingle & range ? 'get' : 'getAll'](range)
+    get(table, range, column){
+    	this.checkRequired({table, range})
 
-	return this.promise(request)
+    	let transaction = this.transaction(table)[range[0] ? 'getAll':'get']( this.range( range[0] || range, range[1] ) )
+    	if(column){
+    		this.checkColumn(this.structure[ table ], column)
+		transaction = transaction.index( column )
+    	}
+	return this.promise( transaction )
     }
 
     set(table, data){
 	this.checkRequired({table, data})
-
-	let structure = this.structure[table];
-	for(let column in data){
-	    if(!( column in structure )){
-		throw 'column "' + column + '" does not exist in table structure'
-	    }
-	}
-	for(let column in structure){
-	    if(!( column in data )){
-		let config = structure[column]
-		if('default' in config){
-		    data[column] = config.default
-		}else if(config){ // ! add required status
-		    throw 'column "' + column + '" is required'
-		}
-	    }
-	}
-	let transaction = this.DB
-	    .transaction(table, 'readwrite', {durability: 'strict'})
-	    .objectStore(table)
-	    .add(data)
-	return this.promise(transaction)
+	data = this.checkStructure(table, data)
+	return this.promise( this.transaction(table, true).add( data ) )
     }
+    delete = (table, id) => this.promise( this.transaction(table, true).delete( this.range(id) ) )
 
-    transaction(table, range, key, type = 'readonly'){
-	this.checkRequired({table})
-
-	let request = this.DB
-	    .transaction(table, type, {durability: 'strict'})
-	    .objectStore(table)
-
-	if(key && type == 'readonly'){
-	    if(!this.structure[table][key]){
-		throw 'column "' + key + '" does not exist in table structure'
-	    }
-	    request = request.index(key)
-	}
-
-	let isSingle = (!key && range && !range.push) ||
-			(key ? this.structure[table][key].unique : false);
-
-	if(range){
-	    range = (range && range.push) ?
-		IDBKeyRange.bound(range[0], range[1]) :
-		IDBKeyRange.only(range)
-	}
-
-	return {range, isSingle, request}
-    }
-
-    delete(table, id){
-	var {range, isSingle, request} = this.transaction(table, id, false, 'readwrite')
-	request = request[isSingle ? 'delete' : 'deleteIndex'](range)
-	return this.promise(request)
-    }
+    transaction = (table, isRW) => this.DB.transaction(table, isRW ? 'readwrite' : 'readonly' , {durability: 'strict'}).objectStore( table )
+    range = (range_from, range_to) => range_to ? IDBKeyRange.bound(range_from, range_to) : IDBKeyRange.only(range_from)
 
     checkRequired(values){
 	for(let key in values){
 	    if(!values[key]){ throw 'parameter "' + key + '" is required' }
 	}
+    }
+    checkStructure(table, data){
+    	let structure = this.structure[table];
+	for(let column in data){
+	    let config = this.checkColumn(structure, column)
+	    data = this.setDefaults(column, data, config)
+	}
+	return data
+    }
+    checkColumn(structure, column){
+    	if(!( column in structure )){
+		throw 'column "' + column + '" does not exist in table structure'
+	}
+	return structure[ column ]
+    }
+    setDefaults(column, data, config){
+    	if(!data[ column ]){
+	    	if('default' in config){
+			data[ column ] = config.default
+		}else if(config){ // ! add required status
+			throw 'column "' + column + '" is required'
+		}
+    	}
+	return data
     }
 }
