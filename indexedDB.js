@@ -52,7 +52,7 @@ class DATA{
     get(table, range, column){
     	this.checkRequired({table, range})
 
-    	let transaction = this.transaction(table)[range[0] ? 'getAll':'get']( this.range( range[0] || range, range[1] ) )
+    	let transaction = this.transaction( table )[range[0] ? 'getAll':'get']( this.range( range[0] || range, range[1] ) )
     	if(column){
     		this.checkColumn(this.structure[ table ], column)
 		transaction = transaction.index( column )
@@ -62,10 +62,11 @@ class DATA{
 
     set(table, data){
 	this.checkRequired({table, data})
+
 	data = this.checkStructure(table, data)
 	return this.promise( this.transaction(table, true).add( data ) )
     }
-    delete = (table, id) => this.promise( this.transaction(table, true).delete( this.range(id) ) )
+    delete = (table, id) => table&& id&& this.promise( this.transaction(table, true).delete( this.range(id) ) )
 
     transaction = (table, isRW) => this.DB.transaction(table, isRW ? 'readwrite' : 'readonly' , {durability: 'strict'}).objectStore( table )
     range = (range_from, range_to) => range_to ? IDBKeyRange.bound(range_from, range_to) : IDBKeyRange.only(range_from)
@@ -78,8 +79,12 @@ class DATA{
     checkStructure(table, data){
     	let structure = this.structure[table];
 	for(let column in data){
-	    let config = this.checkColumn(structure, column)
-	    data = this.setDefaults(column, data, config)
+	    this.checkColumn(structure, column)
+	}
+	for(let column in structure){
+		if(!(column in data)){
+			data[ column ] = this.setDefaults(column, structure[ column ])
+		}
 	}
 	return data
     }
@@ -89,14 +94,15 @@ class DATA{
 	}
 	return structure[ column ]
     }
-    setDefaults(column, data, config){
-    	if(!data[ column ]){
-	    	if('default' in config){
-			data[ column ] = config.default
-		}else if(config){ // ! add required status
-			throw 'column "' + column + '" is required'
-		}
-    	}
-	return data
+    setDefaults(column, config){
+    	let result = false
+    	if('default' in config){
+		result = config.default
+	}else if(config.type == 'date'){
+		result = new Date().getTime()
+	}else if(config.required){
+		throw 'column "' + column + '" is required'
+	}
+	return result
     }
 }

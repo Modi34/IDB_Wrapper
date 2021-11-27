@@ -12,8 +12,7 @@ setTimeout(e=>{
 			table: 'tasks',
 			data: [{
 				title: 'hey',
-				isFinished: true,
-				date: -1
+				isFinished: true
 			}]
 		}
 	})
