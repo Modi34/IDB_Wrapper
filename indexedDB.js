@@ -10,7 +10,7 @@ class DATA{
 	    let tables = connection.DB.objectStoreNames;
 	    for(let table of tables){
 		this[table] = {
-		    set: data => this.set(table, data),
+		    set: (data, range, column) => this.set(table, data, range, column),
 		    get: (range, key) => this.get(table, range, key),
 		    delete: id => this.delete(table, id)
 		}
@@ -48,42 +48,44 @@ class DATA{
     }
 
     // range = [from, to] || from
-    get(table, range, column){
+    get(table, range, column, transaction = this.transaction( table )){
     	this.checkRequired({table, range})
 
-    	let transaction = this.transaction( table ).getAll( this.range(range) )
+    	transaction = transaction.getAll( this.range(range) )
     	if( column&& this.checkColumn(this.structure[ table ], column) ){
 		transaction = transaction.index( column )
     	}
 	return this.promise( transaction )
     }
 
-    set(table, data){
+    async set(table, data, range, column){
 	this.checkRequired({table, data})
-	let structure = this.checkStructure(table, data)
-	for(let column in structure){
-		if(!(column in data)){
-			data[ column ] = this.setDefaults(column, structure[ column ])
-		}
-	}
-	return this.promise( this.transaction(table, true).add( data ) )
-    }
-    
-    async update(table, data, range){
-    	this.checkRequired({table, data, range})
-	this.checkStructure(table, data)
-
 	let transaction = this.transaction(table, true)
-	let records = await this.promise( transaction.getAll( this.range(range) ) );
 
-	for(let record of records){
-		for(let column in data){
-			record[column] = data[column]
+	if(range){ // update existing
+		this.checkStructure(table, data)
+		let records = await this.get(table, range, column, transaction);
+
+		for(let record of records){
+			for(let column in data){
+				record[ column ] = data[ column ]
+			}
+			this.promise( transaction.put( record ) )
 		}
-		this.promise( transaction.put( record ) )
+	}else{ // create new
+		for(let record of data){
+			let structure = this.checkStructure(table, record)
+			for(let column in structure){
+				if(!(column in record)){
+					record[ column ] = this.setDefaults(column, structure[ column ])
+				}
+			}
+			await this.promise( transaction.add( record ) )
+		}
 	}
 	return true
     }
+
     delete(table, range){
     	this.checkRequired({table, range})
     	return this.promise( this.transaction(table, true).delete( this.range(range) ) )

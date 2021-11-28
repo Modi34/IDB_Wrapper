@@ -26,18 +26,14 @@ const actions = {
 		})
 	},
 	async set(params){
-		let {table, data} = params;
-		for(let record of data){
-			let id = await connection[ table ]?.set( record )
-			if(id){
-				notifyAllClients({type: 'set', table, record, id})
-			}
-		}
+		let {table, data, range, column} = params;
+		await connection[ table ]?.set( data, range, column )
+		notifyAllClients({type: 'set', table, range, data})
 	},
 	async delete(params){
-		let {table, id, key} = params
-		await connection[ table ]?.delete( id )
-		notifyAllClients({type: 'delete', table, id})
+		let {table, range} = params
+		await connection[ table ]?.delete( range )
+		notifyAllClients({type: 'delete', table, range})
 	}
 }
 
