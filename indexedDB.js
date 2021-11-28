@@ -52,7 +52,7 @@ class DATA{
     get(table, range, column){
     	this.checkRequired({table, range})
 
-    	let transaction = this.transaction( table )[range[0] ? 'getAll':'get']( this.range( range[0] || range, range[1] ) )
+    	let transaction = this.transaction( table )[range[0] ? 'getAll':'get']( range )
     	if(column){
     		this.checkColumn(this.structure[ table ], column)
 		transaction = transaction.index( column )
@@ -62,14 +62,15 @@ class DATA{
 
     set(table, data){
 	this.checkRequired({table, data})
-
-	data = this.checkStructure(table, data)
-	return this.promise( this.transaction(table, true).add( data ) )
+	return this.promise( this.transaction(table, true).put( this.checkStructure(table, data) ) )
     }
-    delete = (table, id) => table&& id&& this.promise( this.transaction(table, true).delete( this.range(id) ) )
+    delete(table, range){
+    	this.checkRequired({table, range})
+    	return this.promise( this.transaction(table, true).delete( this.range(range) ) )
+    }
 
     transaction = (table, isRW) => this.DB.transaction(table, isRW ? 'readwrite' : 'readonly' , {durability: 'strict'}).objectStore( table )
-    range = (range_from, range_to) => range_to ? IDBKeyRange.bound(range_from, range_to) : IDBKeyRange.only(range_from)
+    range = range => range && (range[0] ? IDBKeyRange.bound(range[0], range[1]) : IDBKeyRange.only(range))
 
     checkRequired(values){
 	for(let key in values){
